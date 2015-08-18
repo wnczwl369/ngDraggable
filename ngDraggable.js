@@ -49,6 +49,9 @@ angular.module("ngDraggable", [])
                     // deregistration function for mouse move events in $rootScope triggered by jqLite trigger handler
                     var _deregisterRootMoveListener = angular.noop;
 
+                    var startX;
+                    var startY;
+
                     var initialize = function () {
                         element.attr('draggable', 'false'); // prevent native drag
                         // check to see if drag handle(s) was specified
@@ -117,11 +120,13 @@ angular.module("ngDraggable", [])
                         }
 
                         if(_hasTouch){
+                            startX = evt.originalEvent.changedTouches[0].pageX;
+                            startY = evt.originalEvent.changedTouches[0].pageY;
                             cancelPress();
                             _pressTimer = setTimeout(function(){
                                 cancelPress();
                                 onlongpress(evt);
-                            },100);
+                            },1000);
                             $document.on(_moveEvents, cancelPress);
                             $document.on(_releaseEvents, cancelPress);
                         }else{
@@ -130,15 +135,29 @@ angular.module("ngDraggable", [])
 
                     };
 
-                    var cancelPress = function() {
-                        clearTimeout(_pressTimer);
-                        $document.off(_moveEvents, cancelPress);
-                        $document.off(_releaseEvents, cancelPress);
+                    var cancelPress = function(evt) {
+                        if(evt){
+                            var moveToX = evt.originalEvent.changedTouches[0].pageX;
+                            var moveToY = evt.originalEvent.changedTouches[0].pageY;
+                            var shouldBeSeenAsPress = Math.abs(moveToX - startX) < 5 && Math.abs(moveToY - startY) < 5;
+                            if(!shouldBeSeenAsPress){
+                                clearTimeout(_pressTimer);
+                                $document.off(_moveEvents, cancelPress);
+                                $document.off(_releaseEvents, cancelPress);
+                            }
+                        }else{
+                            clearTimeout(_pressTimer);
+                            $document.off(_moveEvents, cancelPress);
+                            $document.off(_releaseEvents, cancelPress);
+                        }
                     };
 
                     var onlongpress = function(evt) {
                         if(! _dragEnabled)return;
                         evt.preventDefault();
+                        if (!element.hasClass('dragging-leo')) {
+                            element.addClass('dragging-leo');
+                        }
 
                         offset = element[0].getBoundingClientRect();
                         if(allowTransform)
@@ -206,6 +225,7 @@ angular.module("ngDraggable", [])
                         evt.preventDefault();
                         $rootScope.$broadcast('draggable:end', {x:_mx, y:_my, tx:_tx, ty:_ty, event:evt, element:element, data:_data, callback:onDragComplete, uid: _myid});
                         element.removeClass('dragging');
+                        element.removeClass('dragging-leo');
                         element.parent().find('.drag-enter').removeClass('drag-enter');
                         reset();
                         $document.off(_moveEvents, onmove);
